@@ -1,0 +1,10 @@
+{
+  "started_at": "2026-10-07T17:32:22.537+00:00",
+  "state": "failure",
+  "run_id": "37659825514",
+  "attempt": "1",
+  "code_sha": "c003f60edb2032e9d464d13c5f416d8e5317137b",
+  "event": "workflow_dispatch",
+  "run_url": "https://github.com/schwill2018/nhl-projection-pull/actions/runs/37659825514",
+  "completed_at": "2026-10-07T17:33:35.789+00:00"
+}

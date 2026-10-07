@@ -1,0 +1,8 @@
+* text=auto
+*.R text eol=lf
+*.py text eol=lf
+*.yml text eol=lf
+*.md text eol=lf
+*.rds binary
+# Preserve the bytes of HTTP responses and manifests on every platform.
+Data/** -text
