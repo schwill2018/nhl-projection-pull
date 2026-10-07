@@ -115,11 +115,50 @@ early <- read_projected_goalies_asof("2026-10-06", "2026-10-06T11:30:00Z", scrat
 late <- read_projected_goalies_asof("2026-10-06", "2026-10-06T12:30:00Z", scratch)
 stopifnot(early$playerId[early$projected_goalie == 1L] == 1L,
   late$playerId[late$projected_goalie == 1L] == 1L, nrow(late) == 2L, sum(late$projected_goalie) == 1L)
+# Failed/interrupted receipt-bearing archives cannot supply model predictions.
+# Legacy V2 archives without a receipt retain their existing behavior.
+failed_dir <- file.path(scratch, "history", "4")
+dir.create(failed_dir)
+failed <- mutate(x, retrieved_at = "2026-10-06T13:00:00Z", projected_goalie = as.integer(playerId == 2L))
+saveRDS(failed, file.path(failed_dir, "projected_goalie_df.rds"))
+writeLines('{"state":"failure"}', file.path(failed_dir, "run.json"))
+after_failed <- read_projected_goalies_asof("2026-10-06", "2026-10-06T14:00:00Z", scratch)
+stopifnot(after_failed$playerId[after_failed$projected_goalie == 1L] == 1L)
+writeLines('{"state":"success"}', file.path(failed_dir, "run.json"))
+after_success <- read_projected_goalies_asof("2026-10-06", "2026-10-06T14:00:00Z", scratch)
+stopifnot(after_success$playerId[after_success$projected_goalie == 1L] == 2L)
+cat("PASS failed receipt excluded and successful receipt included in as-of model reads\n")
 cat("PASS matching, invalid structure, team scoping, duplicate/opponent/backup validation, repeated history, as-of cutoffs and equal-time team snapshots\n")
 
 # Exercise the actual CLI receipt/summary/exit handling offline with injected GET.
-for (scenario in c("normal", "stale", "article_503", "missing_schedule")) {
+# Actions supplies a live output directory and summary path. The fixture CLI
+# must use neither, even when it is run inside the collection workflow.
+protected_run <- tempfile("actions_receipt_", tmpdir = ".local/tests")
+dir.create(protected_run)
+writeLines("production receipt", file.path(protected_run, "run.json"))
+protected_summary <- tempfile("actions_summary_", tmpdir = ".local/tests")
+writeLines("production summary", protected_summary)
+cli_environment <- function(scenario) {
   environment <- make_environment("R/projected_goalies.R", scenario)
+  environment$Sys.getenv <- function(x, unset = "", ...) {
+    values <- base::Sys.getenv(x, unset = unset, ...)
+    values[x == "PG_RUN_DIR" | x == "GITHUB_STEP_SUMMARY"] <- unset
+    values
+  }
+  environment
+}
+original_action_env <- Sys.getenv(c("PG_RUN_DIR", "GITHUB_STEP_SUMMARY"), unset = NA_character_)
+run_cli_checks <- function() {
+  on.exit({
+    for (name in names(original_action_env)) {
+      if (is.na(original_action_env[[name]])) Sys.unsetenv(name)
+      else do.call(Sys.setenv, setNames(list(original_action_env[[name]]), name))
+    }
+  }, add = TRUE)
+  Sys.setenv(PG_RUN_DIR = protected_run, GITHUB_STEP_SUMMARY = protected_summary)
+  sentinel_hashes <- tools::md5sum(c(file.path(protected_run, "run.json"), protected_summary))
+for (scenario in c("normal", "stale", "article_503", "missing_schedule")) {
+  environment <- cli_environment(scenario)
   base <- tempfile("cli_", tmpdir = ".local/tests")
   environment$commandArgs <- function(...) base
   environment$source <- function(...) invisible(NULL) # Environment already holds collector
@@ -133,3 +172,8 @@ for (scenario in c("normal", "stale", "article_503", "missing_schedule")) {
     if (expected == "failure") identical(error, "EXIT 1") else is.null(error))
   cat("PASS CLI summary and exit:", scenario, "\n")
 }
+  stopifnot(identical(list.files(protected_run), "run.json"),
+    identical(sentinel_hashes, tools::md5sum(names(sentinel_hashes))))
+  cat("PASS Actions output directory and summary untouched by offline CLI fixtures\n")
+}
+run_cli_checks()

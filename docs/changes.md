@@ -32,3 +32,25 @@ Necessary fixes and additions:
 
 No new fuzzy matching, lineup-date inference, starter inference from API order,
 post-start prediction eligibility, or local-model integration was introduced.
+
+## First GitHub run: fixture environment isolation
+
+The initial CLI tests inherited Actions' `PG_RUN_DIR` and `GITHUB_STEP_SUMMARY`.
+They wrote synthetic fixture outputs into the live run folder, then failed their
+isolated-directory assertion. The harness now masks those variables, and the
+workflow clears them in the fixture step. Regression checks simulate Actions
+variables and confirm both production receipt and summary remain untouched.
+
+The failed run `37659825514`, attempt 1, was inspected read-only on `data`.
+Its run receipt says `failure`, but it contains synthetic NSH/TOR projections
+dated October 6. Retain this evidence; do not treat it as a live prediction.
+As-of model reads now exclude receipt-bearing runs whose state is not `success`.
+Legacy V2 folders without receipts retain their prior behavior. Future successful
+live runs are eligible under the unchanged matching and pregame rules.
+
+Checkout v5 and upload-artifact v6 use Node 24, resolving the Node 20 warning
+([checkout definition](https://raw.githubusercontent.com/actions/checkout/v5/action.yml),
+[upload definition](https://raw.githubusercontent.com/actions/upload-artifact/v6/action.yml)).
+Recovery upload includes hidden files only within its explicitly selected run/cache
+paths, so pending `.local` bootstrap receipts are not silently skipped.
+The Ubuntu migration notice is informational and requires no collector change.

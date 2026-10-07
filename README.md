@@ -114,6 +114,8 @@ projected <- read_projected_goalies_asof(
 The helper chooses the latest successful **whole-team** snapshot observed by the
 cutoff and strictly before scheduled start. Later stale/missing pulls cannot erase
 earlier eligible snapshots. Equal-time ties select one whole archive by path.
+Archives with run receipts marked failed/interrupted are excluded from model reads;
+older V2 archives without receipts remain supported.
 `projected_goalie_latest.rds` is only the latest pull and may be incomplete;
 historical models must use the as-of helper.
 

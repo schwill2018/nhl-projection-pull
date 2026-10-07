@@ -79,3 +79,16 @@ All five `reference/` copies were SHA-256 compared to their supplied originals
 and were identical after setup. Runtime/scripts/workflows contain no original
 model-folder or absolute R-library dependency. Local Git is initialized on `main`
 with **no configured remote**; no GitHub repository or automation was enabled.
+
+## Follow-up: first hosted run failure
+
+The initial hosted run successfully installed R/dependencies and passed all core
+fixture scenarios, then failed in the CLI harness because it inherited the live
+`PG_RUN_DIR`. Its synthetic outputs were durably archived under a failure receipt.
+The archive was inspected read-only; no GitHub history was changed or deleted.
+
+The corrected harness is tested with simulated Actions destination/summary
+variables and verifies those files remain untouched. The workflow also clears
+the variables for offline fixtures. As-of checks cover exclusion of failed
+receipts, inclusion of successful receipts, and compatibility with legacy V2
+archives. No NHL collection/matching/cutoff rule was changed.

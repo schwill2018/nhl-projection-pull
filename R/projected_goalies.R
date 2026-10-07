@@ -400,6 +400,13 @@ read_projected_goalies_asof <- function(game_date, cutoff_utc,
   if (!length(snapshot_paths)) return(tibble())
   # Select a whole run, even when two observations share a millisecond.
   snapshots <- map_dfr(sort(snapshot_paths), function(path) {
+    # Receipts distinguish a completed live pull from an interrupted/failed
+    # attempt, including fixture-contaminated attempts from the initial harness.
+    receipt <- file.path(dirname(path), "run.json")
+    if (file.exists(receipt)) {
+      metadata <- fromJSON(receipt)
+      if (!identical(metadata$state, "success")) return(tibble())
+    }
     mutate(readRDS(path), .snapshot_path = path)
   })
   if (!"eligible_for_backtest" %in% names(snapshots)) return(tibble())
