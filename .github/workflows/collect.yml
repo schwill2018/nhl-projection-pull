@@ -1,0 +1,70 @@
+name: Collect NHL projected goalies
+
+on:
+  schedule:
+    - cron: '15 9,11,13,15 * * *'
+      timezone: America/Chicago
+  workflow_dispatch:
+
+# Explicit opt-in keeps publication from starting collection unexpectedly.
+# Set the repository variable NHL_COLLECTION_ENABLED=true after publishing.
+permissions:
+  contents: write
+
+concurrency:
+  group: nhl-goalie-data-writer
+  cancel-in-progress: false
+  queue: max
+
+jobs:
+  collect:
+    if: vars.NHL_COLLECTION_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      R_KEEP_PKG_SOURCE: 'yes'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - name: Allocate immutable observation receipt
+        id: begin
+        run: python3 scripts/history.py begin --pending
+      - name: Restore durable history and goalie cache
+        id: restore
+        run: python3 scripts/history.py hydrate
+      - name: Set up R
+        id: r
+        uses: r-lib/actions/setup-r@v2
+        with:
+          r-version: 'release'
+          use-public-rspm: true
+      - name: Install declared dependencies
+        id: dependencies
+        uses: r-lib/actions/setup-r-dependencies@v2
+        with:
+          cache-version: 1
+      - name: Verify offline fixtures
+        id: fixtures
+        run: Rscript --vanilla tests/test_collector.R
+      - name: Collect lineup observation
+        id: collect
+        run: Rscript --vanilla scripts/collect.R
+      - name: Finalize run receipt and integrity manifest
+        if: always() && steps.begin.outcome == 'success'
+        env:
+          COLLECTION_OUTCOME: ${{ steps.collect.outcome == 'success' && 'success' || 'failure' }}
+        run: python3 scripts/history.py finalize --outcome "$COLLECTION_OUTCOME"
+      - name: Preserve this run as recovery artifact
+        if: always() && steps.begin.outcome == 'success'
+        uses: actions/upload-artifact@v4
+        with:
+          name: goalie-observation-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            ${{ env.PG_RUN_DIR }}
+            Data/projected_goalies/goalie_directory_history.rds
+          retention-days: 14
+          if-no-files-found: error
+      - name: Commit and verify durable archive (also on collection failure)
+        if: always() && steps.begin.outcome == 'success' && steps.restore.outcome == 'success'
+        run: python3 scripts/history.py persist
