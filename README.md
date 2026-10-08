@@ -1,9 +1,15 @@
-# NHL projected-goalie collection
+# NHL projected roster and goalie collection
 
 Standalone R adaptation of the supplied V2. It reads NHL's rolling lineup
 article once per run, matches **both** listed goalies to team-specific NHL player
 IDs, and marks the first as projected starter. API roster ordering never chooses
 a starter. The original hockey-model folder is untouched.
+
+Each pull also resolves forwards, defensemen, scratches and injuries to NHL IDs,
+preserving published forward lines, defense pairs and matchup status notes.
+Complete pregame team snapshots supply `in_projected_lineup` (1/0); incomplete
+coverage stays unknown. Existing goalie files/schema remain compatible.
+See [roster schema and validation](docs/projected-rosters.md).
 
 ## Publish and enable
 
@@ -29,7 +35,7 @@ After publishing:
    succeeds and the new `data` branch contains the observation and goalie cache.
 
 Collection is gated off until step 3. Set that variable to `false` or disable the
-workflow to stop collection. Nothing has been published or remotely enabled.
+workflow to stop collection. Local collection does not push or enable Actions.
 
 ## Schedule, dependencies and local use
 
@@ -46,8 +52,12 @@ workflow_dispatch:
 
 Requires R ≥ 4.4, Git and Python 3.10+ (standard library only). `DESCRIPTION`
 declares dplyr ≥ 1.1.1, purrr, tibble, httr, jsonlite, xml2 and stringi. Actions
-installs current R release/dependencies on Ubuntu with an expendable package
-cache; versions are not locked, so offline fixtures run before every pull.
+uses **R 4.4.2 on Ubuntu 24.04** in both collection and offline-validation jobs,
+matching the locally tested R version. R packages remain unpinned, with an
+expendable package cache; offline fixtures run before every pull. The Ubuntu
+runner image still receives updates within 24.04. These pins avoid automatic R
+release/Ubuntu-major changes; they do not eliminate installation downloads or
+guarantee shorter setup times.
 `setup-r-dependencies` handles Linux system dependencies, including curl/OpenSSL/
 libxml2 development libraries. No model files or absolute library paths are needed.
 
@@ -56,6 +66,7 @@ From the repository root, with `Rscript`, Python and Git on PATH:
 ```powershell
 Rscript --vanilla scripts/install_dependencies.R
 Rscript --vanilla tests/test_collector.R
+Rscript --vanilla tests/test_rosters.R
 python -m unittest discover -s tests -p "test_*.py" -v
 Rscript --vanilla scripts/collect.R
 # Optional isolated live pull:
@@ -73,13 +84,18 @@ UTC/run-ID/attempt/UUID folders preserve repeated pulls and reruns:
 
 ```text
 Data/projected_goalies/
-  goalie_directory_history.rds, projected_goalie_latest.rds
+  goalie_directory_history.rds, player_directory_history.rds
+  projected_goalie_latest.rds, projected_roster_latest.rds
   history/<unique-observation>/
     run.json, collection_status.txt, summary.md, sha256.json
     lineups.html, schedule.json, standings.json, teams.json, roster_*.json
     requests.rds/csv, parsed_lineups.rds, goalie_directory.rds
     coverage.rds/csv, projected_goalie_df.rds/csv
     eligible_pregame.rds/csv, post_start_observations.rds/csv
+    player_directory.rds, parsed_rosters.rds
+    projected_roster_df.rds/csv, roster_coverage.rds/csv
+    roster_notes.rds/csv, roster_diagnostics.rds/csv
+    roster_eligible_pregame.rds/csv, roster_post_start_observations.rds/csv
 ```
 
 Raw fallback/error responses are retained too. Logs record URLs, HTTP status,
@@ -109,6 +125,11 @@ projected <- read_projected_goalies_asof(
   game_date = "2026-10-07", cutoff_utc = "2026-10-07T18:00:00Z",
   base_path = file.path("..", "nhl-goalie-history", "Data", "projected_goalies"))
 # Join on game_id + teamId + playerId, using your actual prediction cutoff.
+roster <- read_projected_rosters_asof(
+  game_date = "2026-10-08", cutoff_utc = "2026-10-08T18:00:00Z",
+  base_path = file.path("..", "nhl-goalie-history", "Data", "projected_goalies"))
+# Join your pregame player statistics on game_id + teamId + playerId.
+# Filter in_projected_lineup == 1 and forward_line <= 3 for the top three lines.
 ```
 
 The helper chooses the latest successful **whole-team** snapshot observed by the
@@ -118,6 +139,28 @@ Archives with run receipts marked failed/interrupted are excluded from model rea
 older V2 archives without receipts remain supported.
 `projected_goalie_latest.rds` is only the latest pull and may be incomplete;
 historical models must use the as-of helper.
+The roster helper independently selects complete roster snapshots; a usable
+goalie projection does not imply a complete skater lineup. Old goalie-only
+archives remain intact and supply no fabricated full-roster rows.
+
+## Updating through GitHub Desktop
+
+The source checkout is `C:\Users\schne\nhl-projection-pull`, on **main**.
+Collected history is on the separate **data** branch and is ignored in this
+source checkout. An ordinary push of main does not replace data.
+
+1. Select this repository and **Current branch: main** in GitHub Desktop.
+2. Click **Fetch origin**. If main has incoming commits, pull them before pushing;
+   if Desktop requires committing local edits first, make the commit, then pull.
+3. Review Changes: R/scripts/tests/docs/workflows are expected. `Data/` and
+   `.local/` must not be included. Commit with a summary such as
+   `Add full projected rosters with line and absence flags`.
+4. Click **Push origin**. Do not merge data into main, delete data, or force-push.
+5. On GitHub, run **Offline validation**, then **Collect NHL projected goalies**
+   manually on main. Verify roster coverage and the final durable archive step.
+   Inspect the newest data-branch observation for `projected_roster_df.csv`.
+
+No additional token, repository variable, dependency, or schedule change is needed.
 
 ## Coverage, failures and recovery
 

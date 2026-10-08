@@ -1,6 +1,6 @@
 Package: nhlprojectionpull
-Title: Archived NHL Projected Goalie Observations
-Version: 0.1.0
+Title: Archived NHL Projected Roster and Goalie Observations
+Version: 0.2.0
 Authors@R: person("Repository", "Maintainer", role = c("aut", "cre"), email = "maintainer@example.invalid")
 Description: Standalone scripts to collect and archive NHL lineup projections.
 License: Private

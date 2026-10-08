@@ -51,12 +51,15 @@ class DurableHistory(unittest.TestCase):
         directory = (set(Path("Data/projected_goalies/history").iterdir()) - before).pop()
         (directory / "coverage.csv").write_text(body, encoding="utf-8")
         (directory / "lineups.html").write_bytes(b"raw response\r\nraw bytes\r\n")
+        (directory / "projected_roster_df.csv").write_text("playerId,in_projected_lineup\n1,1\n2,0\n", encoding="utf-8")
+        (directory / "roster_notes.csv").write_text("scope,status_notes\nmatchup,fixture\n", encoding="utf-8")
         history.finalize(directory, outcome)
         return directory
 
     def test_fresh_runner_repeated_and_failed_observations_keep_cache(self):
         first = self.observation("matched")
         Path("Data/projected_goalies/goalie_directory_history.rds").write_bytes(b"identity cache")
+        Path("Data/projected_goalies/player_directory_history.rds").write_bytes(b"all-position identity cache")
         history.persist("origin", "data")
         first_hash = history.digest(first / "coverage.csv")
         self.assertEqual(set(history.git("ls-tree", "--name-only", "HEAD").decode().splitlines()), {"source.txt", ".gitattributes"})
@@ -64,6 +67,9 @@ class DurableHistory(unittest.TestCase):
         self.assertEqual(history.digest(first / "coverage.csv"), first_hash)
         self.assertEqual((first / "lineups.html").read_bytes(), b"raw response\r\nraw bytes\r\n")
         self.assertEqual(Path("Data/projected_goalies/goalie_directory_history.rds").read_bytes(), b"identity cache")
+        self.assertEqual(Path("Data/projected_goalies/player_directory_history.rds").read_bytes(), b"all-position identity cache")
+        self.assertEqual((first / "projected_roster_df.csv").read_text(), "playerId,in_projected_lineup\n1,1\n2,0\n")
+        self.assertTrue((first / "roster_notes.csv").exists())
         second = self.observation("stale")
         third = self.observation("execution failed", "failure")
         self.assertNotEqual(second, third)
@@ -74,6 +80,7 @@ class DurableHistory(unittest.TestCase):
         self.assertEqual(json.loads((third / "run.json").read_text())["state"], "failure")
         manifest = json.loads((first / "sha256.json").read_text())
         self.assertEqual(manifest["coverage.csv"], first_hash)
+        self.assertEqual(manifest["projected_roster_df.csv"], history.digest(first / "projected_roster_df.csv"))
         parent = history.fetch("origin", "data")
         self.assertEqual(set(history.git("ls-tree", "--name-only", parent).decode().splitlines()), {"Data", ".gitattributes"})
 

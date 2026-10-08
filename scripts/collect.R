@@ -19,7 +19,7 @@ result <- tryCatch({
 })
 coverage_file <- file.path(run_dir, "coverage.rds")
 coverage <- if (file.exists(coverage_file)) readRDS(coverage_file) else NULL
-lines <- c("# NHL projected-goalie collection", "", paste("Observation:", basename(run_dir)), "",
+lines <- c("# NHL projected roster and goalie collection", "", paste("Observation:", basename(run_dir)), "",
   if (is.null(error_message)) "Collection completed." else paste("**FAILED:**", error_message), "")
 if (!is.null(coverage) && nrow(coverage)) {
   matched <- sum(coverage$projection_status == "matched")
@@ -35,6 +35,24 @@ if (!is.null(coverage) && nrow(coverage)) {
     coverage$team_abbrev[i], coverage$opponent_label[i], coverage$projected_name[i],
     coverage$projected_playerId[i], coverage$projection_status[i], coverage$retrieved_at[i])), collapse = " | "), " |"))
 } else lines <- c(lines, if (is.null(error_message)) "No games scheduled today." else "Coverage was not produced.")
+roster_coverage_file <- file.path(run_dir, "roster_coverage.rds")
+if (file.exists(roster_coverage_file)) {
+  roster_coverage <- readRDS(roster_coverage_file)
+  lines <- c(lines, "", sprintf("Eligible complete projected rosters: **%d / %d** teams.",
+    sum(roster_coverage$eligible_for_backtest %in% TRUE), nrow(roster_coverage)))
+  if (nrow(roster_coverage)) {
+    lines <- c(lines, "", "| Team | Participants resolved/listed | F / D | Status | Scratches complete | Injuries complete |",
+      "|---|---|---|---|---|---|")
+    for (i in seq_len(nrow(roster_coverage))) {
+      row <- roster_coverage[i, ]
+      lines <- c(lines, sprintf("| %s | %d / %d | %d / %d | %s | %s | %s |",
+        row$team_abbrev, row$participants_resolved, row$participants_listed,
+        row$forwards, row$defensemen, row$projection_status, row$scratched_complete, row$injured_complete))
+    }
+  }
+  lines <- c(lines, "", "Incomplete roster teams have unknown membership, never blanket zeros.",
+    "See roster_diagnostics.csv for listed names/matches and roster_notes.csv for unassigned matchup prose.")
+} else lines <- c(lines, "", "Full-roster coverage was not produced.")
 requests_file <- file.path(run_dir, "requests.rds")
 if (file.exists(requests_file)) {
   requests <- readRDS(requests_file)

@@ -54,3 +54,42 @@ Checkout v5 and upload-artifact v6 use Node 24, resolving the Node 20 warning
 Recovery upload includes hidden files only within its explicitly selected run/cache
 paths, so pending `.local` bootstrap receipts are not silently skipped.
 The Ubuntu migration notice is informational and requires no collector change.
+
+## Full projected roster extension (October 8, 2026)
+
+Added `R/projected_rosters.R`, sourced by the existing entry point. It parses
+published forward/defense groups, both goalie roles, explicit scratches/injuries
+and matchup-level notes from the already archived responses. No extra NHL
+requests, R packages, changes to schedule/R installation, or remote publication.
+Existing V2 goalie rows/columns/matching/cutoff behavior are retained.
+
+New player outputs/cache live alongside goalie files in the existing run/Data
+tree, so the current durable data-branch persistence restores and archives both.
+Recovery artifacts include the new player cache. Old archived observations are
+not rewritten. Full-roster eligibility is independently validated and invalid
+teams get unknown membership; absence-list coverage is reported separately.
+
+Direct local collector calls now write running/success/failure completion
+markers, allowing both as-of readers to reject failed local attempts. The goalie
+reader also respects these markers when present; marker-free legacy snapshots
+retain their previous behavior. This closes a failure-filtering gap without
+changing goalie projection values or cutoff rules.
+The old fixture's `coverage.csv` filename check now uses an exact filename
+pattern so `roster_coverage.csv` is not mistaken for a duplicate goalie output.
+Both R fixture suites run before collection. Source/data branch separation and
+GitHub Desktop update steps are documented in README.
+
+The live smoke test exposed typographic apostrophes in skater/injury names.
+The new roster parser now accepts those characters before using the unchanged
+normalized-name matching logic; a fixture covers accents and curly apostrophes.
+Spelling mismatches and injured players absent from identity sources remain
+unresolved, with explicit participant/absence coverage rather than guessed IDs.
+
+## R and Ubuntu version pins (October 8, 2026)
+
+Both Actions workflows now select R 4.4.2 and `ubuntu-24.04`, matching the locally
+tested R version and keeping the Ubuntu major version stable. Package versions,
+action tags and the runner image's ongoing 24.04 updates are not locked. No
+collector behavior, schedule, data-branch persistence or prebuilt container change
+is included. R installation/download overhead remains; this change improves
+version consistency rather than claiming to fix the earlier slow network path.

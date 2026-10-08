@@ -11,6 +11,7 @@ library(httr)
 library(jsonlite)
 library(xml2)
 library(stringi)
+sys.source("R/projected_rosters.R", envir = environment())
 
 # START HERE. Supporting functions below follow the same step order.
 run_projected_goalies <- function(
@@ -35,6 +36,10 @@ run_projected_goalies <- function(
   dir.create(run_dir, recursive = TRUE, showWarnings = FALSE)
   if (length(list.files(run_dir, pattern = "\\.(rds|csv|html)$")))
     stop("Refusing to overwrite an existing observation directory.")
+  # Direct local calls need the same failure/success evidence as the CLI.
+  completed <- FALSE
+  writeLines("running", file.path(run_dir, "collection_status.txt"))
+  on.exit(if (!completed) writeLines("failure", file.path(run_dir, "collection_status.txt")), add = TRUE)
 
   collector <- pg_create_collector(run_dir)
   fetch <- collector$fetch
@@ -63,6 +68,9 @@ run_projected_goalies <- function(
   # 6. Assign 1 / 0 / NA and save this run's results.
   goalie_df <- pg_build_projection_flags(goalie_directory, coverage, target_date)
   pg_save_outputs(goalie_df, coverage, base_path, run_dir)
+  # Reuse the archived responses: full rosters require no additional HTTP pulls.
+  roster <- pg_collect_rosters(game_teams, goalie_directory, season, previous,
+    target_date, article_observed_at, article_url, base_path, run_dir)
   # Coverage is retained even when an article request fails. Such a failure
   # must fail the run; 404 (not yet published) is the sole expected HTTP miss.
   requests <- readRDS(file.path(run_dir, "requests.rds"))
@@ -70,7 +78,10 @@ run_projected_goalies <- function(
     !is.na(requests$error)
   if (any(failed)) stop("HTTP/decoding failure in ",
     paste(requests$label[failed], collapse = ", "), "; observations retained. See requests.csv.")
-  invisible(list(goalie_df = goalie_df, coverage = coverage, run_dir = run_dir))
+  writeLines("success", file.path(run_dir, "collection_status.txt"))
+  completed <- TRUE
+  invisible(list(goalie_df = goalie_df, coverage = coverage, run_dir = run_dir,
+    roster_df = roster$players, roster_coverage = roster$coverage))
 }
 
 # STEP 1: schedule ----------------------------------------------------------
@@ -407,6 +418,8 @@ read_projected_goalies_asof <- function(game_date, cutoff_utc,
       metadata <- fromJSON(receipt)
       if (!identical(metadata$state, "success")) return(tibble())
     }
+    completion <- file.path(dirname(path), "collection_status.txt")
+    if (file.exists(completion) && readLines(completion, n = 1L) != "success") return(tibble())
     mutate(readRDS(path), .snapshot_path = path)
   })
   if (!"eligible_for_backtest" %in% names(snapshots)) return(tibble())

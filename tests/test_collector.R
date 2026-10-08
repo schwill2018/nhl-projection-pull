@@ -59,7 +59,7 @@ for (scenario in c("missing_schedule", "malformed_schedule", "article_503", "ros
   base <- tempfile("failure_", tmpdir = ".local/tests")
   error <- tryCatch({ replay(environment, base); NULL }, error = conditionMessage)
   stopifnot(!is.null(error), length(list.files(base, pattern = "requests.rds", recursive = TRUE)) == 1L)
-  if (scenario == "article_503") stopifnot(length(list.files(base, pattern = "coverage.csv", recursive = TRUE)) == 1L)
+  if (scenario == "article_503") stopifnot(length(list.files(base, pattern = "^coverage\\.csv$", recursive = TRUE)) == 1L)
   cat("PASS visible failure:", scenario, "\n")
 }
 empty <- replay(make_environment("R/projected_goalies.R", "no_blocks"))

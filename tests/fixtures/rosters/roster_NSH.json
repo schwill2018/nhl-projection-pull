@@ -1,0 +1,215 @@
+{
+  "forwards": [
+    {
+      "id": 9000001,
+      "firstName": {
+        "default": "Alex"
+      },
+      "lastName": {
+        "default": "Alder"
+      }
+    },
+    {
+      "id": 9000002,
+      "firstName": {
+        "default": "Blake"
+      },
+      "lastName": {
+        "default": "Birch"
+      }
+    },
+    {
+      "id": 9000003,
+      "firstName": {
+        "default": "Casey"
+      },
+      "lastName": {
+        "default": "Cedar"
+      }
+    },
+    {
+      "id": 9000004,
+      "firstName": {
+        "default": "Devon"
+      },
+      "lastName": {
+        "default": "Dogwood"
+      }
+    },
+    {
+      "id": 9000005,
+      "firstName": {
+        "default": "Elliot"
+      },
+      "lastName": {
+        "default": "Elm"
+      }
+    },
+    {
+      "id": 9000006,
+      "firstName": {
+        "default": "Frank"
+      },
+      "lastName": {
+        "default": "Fir"
+      }
+    },
+    {
+      "id": 9000007,
+      "firstName": {
+        "default": "Gavin"
+      },
+      "lastName": {
+        "default": "Grove"
+      }
+    },
+    {
+      "id": 9000008,
+      "firstName": {
+        "default": "Hayden"
+      },
+      "lastName": {
+        "default": "Holly"
+      }
+    },
+    {
+      "id": 9000009,
+      "firstName": {
+        "default": "Isaac"
+      },
+      "lastName": {
+        "default": "Ivy"
+      }
+    },
+    {
+      "id": 9000010,
+      "firstName": {
+        "default": "Jordan"
+      },
+      "lastName": {
+        "default": "Juniper"
+      }
+    },
+    {
+      "id": 9000011,
+      "firstName": {
+        "default": "Kai"
+      },
+      "lastName": {
+        "default": "Kauri"
+      }
+    },
+    {
+      "id": 9000012,
+      "firstName": {
+        "default": "Logan"
+      },
+      "lastName": {
+        "default": "Laurel"
+      }
+    },
+    {
+      "id": 9000013,
+      "firstName": {
+        "default": "Taylor"
+      },
+      "lastName": {
+        "default": "Willow"
+      }
+    },
+    {
+      "id": 9000014,
+      "firstName": {
+        "default": "Uma"
+      },
+      "lastName": {
+        "default": "Ash"
+      }
+    }
+  ],
+  "defensemen": [
+    {
+      "id": 9000101,
+      "firstName": {
+        "default": "Morgan"
+      },
+      "lastName": {
+        "default": "Maple"
+      }
+    },
+    {
+      "id": 9000102,
+      "firstName": {
+        "default": "Noel"
+      },
+      "lastName": {
+        "default": "Oak"
+      }
+    },
+    {
+      "id": 9000103,
+      "firstName": {
+        "default": "Owen"
+      },
+      "lastName": {
+        "default": "Pine"
+      }
+    },
+    {
+      "id": 9000104,
+      "firstName": {
+        "default": "Parker"
+      },
+      "lastName": {
+        "default": "Poplar"
+      }
+    },
+    {
+      "id": 9000105,
+      "firstName": {
+        "default": "Quinn"
+      },
+      "lastName": {
+        "default": "Redwood"
+      }
+    },
+    {
+      "id": 9000106,
+      "firstName": {
+        "default": "Riley"
+      },
+      "lastName": {
+        "default": "Spruce"
+      }
+    },
+    {
+      "id": 9000107,
+      "firstName": {
+        "default": "Victor"
+      },
+      "lastName": {
+        "default": "Beech"
+      }
+    }
+  ],
+  "goalies": [
+    {
+      "id": 8477424,
+      "firstName": {
+        "default": "Juuse"
+      },
+      "lastName": {
+        "default": "Saros"
+      }
+    },
+    {
+      "id": 8481812,
+      "firstName": {
+        "default": "Justus"
+      },
+      "lastName": {
+        "default": "Annunen"
+      }
+    }
+  ]
+}

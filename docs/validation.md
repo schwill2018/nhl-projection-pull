@@ -73,7 +73,9 @@ ignored `.local/R-library`; no absolute user-library path is needed by committed
 collector/tests. Fresh CRAN installation could not be exercised here because the
 CRAN mirror hostname did not resolve in this environment. The installer and Actions
 dependency setup are prepared, and must be verified on the published runner.
-Actions uses current R release and declared dependencies, with fixtures before collection.
+Actions is now configured for R 4.4.2 on Ubuntu 24.04, with declared dependencies
+and fixtures before collection. Hosted execution of these pins must be verified
+after the user pushes the workflow update; local suites passed on R 4.4.2.
 
 All five `reference/` copies were SHA-256 compared to their supplied originals
 and were identical after setup. Runtime/scripts/workflows contain no original
@@ -92,3 +94,37 @@ variables and verifies those files remain untouched. The workflow also clears
 the variables for offline fixtures. As-of checks cover exclusion of failed
 receipts, inclusion of successful receipts, and compatibility with legacy V2
 archives. No NHL collection/matching/cutoff rule was changed.
+
+## Projected roster extension: October 8, 2026
+
+Both offline R suites passed after the final changes. Existing goalie outputs
+remain equivalent to original V2 across normal, stale, late, missing-article,
+season/prior/cache fallback and no-game scenarios. New synthetic roster fixtures
+cover 12F/6D and 11F/7D, forward/pair order, both goalies' membership, unlisted
+players, scratches/injuries, embedded commas, accents/typographic apostrophes,
+ambiguous/unresolved/duplicate identities, position/status conflicts, missing
+sections versus None, shared notes, labeled identity fallback, no games, strict
+cutoff, whole-team replacement/ties, failed local calls/receipts, and CLI summaries.
+The fixture proves full-roster parsing adds no HTTP requests.
+
+Five offline Python storage tests passed using temporary local bare repositories.
+They exercise fresh-runner restoration of both goalie/player caches and new roster
+files, repeated/failed runs, byte preservation/manifests, concurrent writer and
+push failures, and rejection of changes to old observations. Git's Windows MSYS
+process setup is blocked within the filesystem sandbox; this suite passed outside
+that sandbox, still using only local temporary remotes and never GitHub pushes.
+
+An isolated live CLI pull at `2026-10-08T15:12:21.482Z` archived 37 HTTP 200
+responses, 794 identity/player rows and all new output files. NHL's article was
+dated October 7 while the target was October 8: all 20 scheduled teams correctly
+remained ineligible with unknown membership. This expected condition completed
+successfully. Evidence stays under ignored `.local/roster-live-smoke/`.
+
+The saved live article was then reparsed in memory after the apostrophe fix,
+without editing the archived run. Five of its six published participant blocks
+resolved; Capitals' `Alaiksei Protas` remained unresolved under the unchanged
+name-matching rules. Several injured names were absent from the fetched identity
+directory. Those gaps are explicit, not guessed IDs or false negative flags.
+Because the article was stale, this live test did not establish eligible current-day
+coverage; fixtures validate the complete eligible path. No remote branch, original
+Hockey_Model file, schedule, or R setup was changed during this extension.

@@ -1,0 +1,215 @@
+{
+  "forwards": [
+    {
+      "id": 9100001,
+      "firstName": {
+        "default": "TorAlex"
+      },
+      "lastName": {
+        "default": "Alder"
+      }
+    },
+    {
+      "id": 9100002,
+      "firstName": {
+        "default": "TorBlake"
+      },
+      "lastName": {
+        "default": "Birch"
+      }
+    },
+    {
+      "id": 9100003,
+      "firstName": {
+        "default": "TorCasey"
+      },
+      "lastName": {
+        "default": "Cedar"
+      }
+    },
+    {
+      "id": 9100004,
+      "firstName": {
+        "default": "TorDevon"
+      },
+      "lastName": {
+        "default": "Dogwood"
+      }
+    },
+    {
+      "id": 9100005,
+      "firstName": {
+        "default": "TorElliot"
+      },
+      "lastName": {
+        "default": "Elm"
+      }
+    },
+    {
+      "id": 9100006,
+      "firstName": {
+        "default": "TorFrank"
+      },
+      "lastName": {
+        "default": "Fir"
+      }
+    },
+    {
+      "id": 9100007,
+      "firstName": {
+        "default": "TorGavin"
+      },
+      "lastName": {
+        "default": "Grove"
+      }
+    },
+    {
+      "id": 9100008,
+      "firstName": {
+        "default": "TorHayden"
+      },
+      "lastName": {
+        "default": "Holly"
+      }
+    },
+    {
+      "id": 9100009,
+      "firstName": {
+        "default": "TorIsaac"
+      },
+      "lastName": {
+        "default": "Ivy"
+      }
+    },
+    {
+      "id": 9100010,
+      "firstName": {
+        "default": "TorJordan"
+      },
+      "lastName": {
+        "default": "Juniper"
+      }
+    },
+    {
+      "id": 9100011,
+      "firstName": {
+        "default": "TorKai"
+      },
+      "lastName": {
+        "default": "Kauri"
+      }
+    },
+    {
+      "id": 9100012,
+      "firstName": {
+        "default": "TorTaylor"
+      },
+      "lastName": {
+        "default": "Willow"
+      }
+    },
+    {
+      "id": 9100013,
+      "firstName": {
+        "default": "TorUma"
+      },
+      "lastName": {
+        "default": "Ash"
+      }
+    }
+  ],
+  "defensemen": [
+    {
+      "id": 9100101,
+      "firstName": {
+        "default": "TorMorgan"
+      },
+      "lastName": {
+        "default": "Maple"
+      }
+    },
+    {
+      "id": 9100102,
+      "firstName": {
+        "default": "TorNoel"
+      },
+      "lastName": {
+        "default": "Oak"
+      }
+    },
+    {
+      "id": 9100103,
+      "firstName": {
+        "default": "TorOwen"
+      },
+      "lastName": {
+        "default": "Pine"
+      }
+    },
+    {
+      "id": 9100104,
+      "firstName": {
+        "default": "TorParker"
+      },
+      "lastName": {
+        "default": "Poplar"
+      }
+    },
+    {
+      "id": 9100105,
+      "firstName": {
+        "default": "TorQuinn"
+      },
+      "lastName": {
+        "default": "Redwood"
+      }
+    },
+    {
+      "id": 9100106,
+      "firstName": {
+        "default": "TorRiley"
+      },
+      "lastName": {
+        "default": "Spruce"
+      }
+    },
+    {
+      "id": 9100107,
+      "firstName": {
+        "default": "TorSam"
+      },
+      "lastName": {
+        "default": "Sycamore"
+      }
+    },
+    {
+      "id": 9100108,
+      "firstName": {
+        "default": "TorVictor"
+      },
+      "lastName": {
+        "default": "Beech"
+      }
+    }
+  ],
+  "goalies": [
+    {
+      "id": 8480045,
+      "firstName": {
+        "default": "Joseph"
+      },
+      "lastName": {
+        "default": "Woll"
+      }
+    },
+    {
+      "id": 8475883,
+      "firstName": {
+        "default": "Anthony"
+      },
+      "lastName": {
+        "default": "Stolarz"
+      }
+    }
+  ]
+}
