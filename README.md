@@ -1,215 +1,160 @@
-# NHL projected roster and goalie collection
+# NHL Projection Pull
 
-Standalone R adaptation of the supplied V2. It reads NHL's rolling lineup
-article once per run, matches **both** listed goalies to team-specific NHL player
-IDs, and marks the first as projected starter. API roster ordering never chooses
-a starter. The original hockey-model folder is untouched.
+Collect NHL projected lineups and keep a timestamped history for pregame modeling.
 
-Each pull also resolves forwards, defensemen, scratches and injuries to NHL IDs,
-preserving published forward lines, defense pairs and matchup status notes.
-Complete pregame team snapshots supply `in_projected_lineup` (1/0); incomplete
-coverage stays unknown. Existing goalie files/schema remain compatible.
-See [roster schema and validation](docs/projected-rosters.md).
+Each run reads NHL.com's lineup projections, matches the listed players to NHL IDs, and saves the source responses alongside the results. That gives you a record of what was available when you made a prediction, even after the article changes.
 
-## Publish and enable
+The collector saves projected starting goalies, forward lines, defense pairs, scratches, injuries, and matchup notes. It collects today's projections using the Chicago date. Past dates come from saved observations; it cannot recreate projections that were never collected.
 
-Create an **empty private GitHub repository**, then run from this folder:
+## What you get
 
-```powershell
-git add .
-git commit -m "Prepare standalone NHL projected goalie collector"
-git remote add origin https://github.com/YOUR_ACCOUNT/YOUR_PRIVATE_REPO.git
-git push -u origin main
-```
+- **Goalies:** both listed goalies matched to the correct team's NHL IDs. The first listed goalie is the projected starter. API roster order never picks the starter.
+- **Full rosters:** published forward lines and defense pairs, both goalies, and explicit scratch and injury information.
+- **Coverage:** which teams resolved, which did not, and why. Missing or incomplete information stays unknown.
+- **History:** separate observations for every pull, with raw responses, request timestamps, and parsed results.
 
-After publishing:
+These are published projections. The collector does not fetch player performance stats or confirm who actually played.
 
-1. Keep `main` as the default branch. Under **Settings → Actions → General**,
-   allow Actions, `actions/*`, and `r-lib/actions/*`. Allow `GITHUB_TOKEN` to write
-   repository contents; organization policies/rulesets must permit creating and
-   updating `data`. No PAT or NHL secret is required.
-2. Run **Actions → Offline validation → Run workflow**; confirm success.
-3. Under **Settings → Secrets and variables → Actions → Variables**, create
-   repository variable **`NHL_COLLECTION_ENABLED`** with exact value **`true`**.
-4. Run **Collect NHL projected goalies** manually. Verify its final archive step
-   succeeds and the new `data` branch contains the observation and goalie cache.
+## Run locally
 
-Collection is gated off until step 3. Set that variable to `false` or disable the
-workflow to stop collection. Local collection does not push or enable Actions.
+Use R 4.4 or newer. Git and Python 3.10+ are also needed for the archive tooling and its tests. R dependencies are listed in [DESCRIPTION](DESCRIPTION).
 
-## Schedule, dependencies and local use
-
-Every day at **9:15 a.m., 11:15 a.m., 1:15 p.m., and 3:15 p.m. America/Chicago**,
-plus manual runs. [Current GitHub syntax](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#schedule)
-supports DST through this timezone field (verified October 7, 2026):
-
-```yaml
-schedule:
-  - cron: '15 9,11,13,15 * * *'
-    timezone: America/Chicago
-workflow_dispatch:
-```
-
-Requires R ≥ 4.4, Git and Python 3.10+ (standard library only). `DESCRIPTION`
-declares dplyr ≥ 1.1.1, purrr, tibble, httr, jsonlite, xml2 and stringi. Actions
-uses **R 4.4.2 on Ubuntu 24.04** in both collection and offline-validation jobs,
-matching the locally tested R version. R packages remain unpinned, with an
-expendable package cache; offline fixtures run before every pull. The Ubuntu
-runner image still receives updates within 24.04. These pins avoid automatic R
-release/Ubuntu-major changes; they do not eliminate installation downloads or
-guarantee shorter setup times.
-`setup-r-dependencies` handles Linux system dependencies, including curl/OpenSSL/
-libxml2 development libraries. No model files or absolute library paths are needed.
-
-From the repository root, with `Rscript`, Python and Git on PATH:
+From the repository root:
 
 ```powershell
 Rscript --vanilla scripts/install_dependencies.R
-Rscript --vanilla tests/test_collector.R
-Rscript --vanilla tests/test_rosters.R
-python -m unittest discover -s tests -p "test_*.py" -v
 Rscript --vanilla scripts/collect.R
-# Optional isolated live pull:
+```
+
+The installer uses `.local/R-library`. Collection writes to `Data/projected_goalies/`; both directories are ignored by Git. Local runs do not push anything to GitHub. Use one writer per output folder.
+
+For an optional pull into a separate output folder:
+
+```powershell
 Rscript --vanilla scripts/collect.R .local/live-smoke
 ```
 
-The installer uses ignored `.local/R-library`. Local collection writes
-`Data/projected_goalies`, never pushes, and requires one writer per output folder.
+## Use the data in a model
 
-## Durable history and model downloads
+**Use the as-of readers for historical predictions.** The `latest` files only describe the most recent pull and may be incomplete.
 
-The **`data` branch** is automatically created on the first enabled run. Every
-runner restores it and `goalie_directory_history.rds` before collecting. Unique
-UTC/run-ID/attempt/UUID folders preserve repeated pulls and reruns:
+Run this from the code repository root after installing the dependencies:
+
+```r
+.libPaths(c(normalizePath(".local/R-library"), .libPaths()))
+source("R/projected_goalies.R")  # Loads both readers without collecting data.
+
+history_path <- file.path("Data", "projected_goalies")
+
+# Example: replace these with your game date and actual prediction cutoff.
+game_date <- "2026-10-08"
+cutoff_utc <- "2026-10-08T18:00:00Z"
+
+goalies <- read_projected_goalies_asof(
+  game_date = game_date,
+  cutoff_utc = cutoff_utc,
+  base_path = history_path
+)
+
+rosters <- read_projected_rosters_asof(
+  game_date = game_date,
+  cutoff_utc = cutoff_utc,
+  base_path = history_path
+)
+```
+
+Join to your model on `game_id + teamId + playerId`. The example needs saved observations for that date; the readers do not fetch historical data.
+
+Each reader selects the latest eligible **whole-team snapshot** available by the cutoff. A later missing, stale, or incomplete pull does not erase an earlier valid snapshot. Failed or interrupted runs are excluded. Goalie and full-roster coverage are checked independently, so a usable goalie projection does not guarantee a complete lineup.
+
+Pregame eligibility requires a current article date, a game state of `FUT` or `PRE`, and an observation strictly before scheduled puck drop. An observation at the exact start time is already too late. The timestamp is when the article response finished downloading.
+
+| Field | Meaning |
+|---|---|
+| `projected_goalie` | `1` for the resolved first-listed goalie, `0` for other goalies on that matched team/game, `NA` when unknown |
+| `in_projected_lineup` | `1` for listed participants, including both goalies; `0` for other output players on a complete eligible team; otherwise `NA` |
+| `forward_line` / `defense_pairs` | Group number in the published lineup |
+| `goalie_role` | `starter` or `backup` when the full-roster snapshot is eligible and complete |
+| `scratched` / `injured` | Explicit absence-section flags; unknown sections stay `NA` |
+
+A zero lineup flag does not mean a player is injured or scratched. See the [roster data contract](docs/projected-rosters.md) for columns, matching rules, and supported lineup structures.
+
+## Collect automatically with GitHub Actions
+
+The collection workflow is configured for **9:15 a.m., 11:15 a.m., 1:15 p.m., and 3:15 p.m. America/Chicago**, plus manual runs. Collection stays disabled until the repository variable below is set.
+
+To enable it in your repository:
+
+1. Keep `main` as the default branch. Allow GitHub Actions, including `actions/*` and `r-lib/actions/*`. Repository policies must allow the workflow's `GITHUB_TOKEN` to write contents and create or update the `data` branch.
+2. Run **Actions → Offline validation → Run workflow** and check that it passes.
+3. Under **Settings → Secrets and variables → Actions → Variables**, set `NHL_COLLECTION_ENABLED` to exactly `true`.
+4. Run **Collect NHL projected goalies** manually. Check the coverage summary and the final **Commit and verify durable archive** step.
+
+No personal access token or NHL secret is required. To stop collection, set `NHL_COLLECTION_ENABLED` to `false` or disable the workflow.
+
+Both workflows use R 4.4.2 on Ubuntu 24.04. R packages are not pinned. The collection workflow runs the offline R fixtures before each live pull.
+
+## Where the history lives
+
+Code lives on `main`. Automated collection stores history on the separate **`data` branch**, created on the first enabled run. Each run restores that history and the player identity caches before collecting.
 
 ```text
 Data/projected_goalies/
-  goalie_directory_history.rds, player_directory_history.rds
-  projected_goalie_latest.rds, projected_roster_latest.rds
-  history/<unique-observation>/
-    run.json, collection_status.txt, summary.md, sha256.json
-    lineups.html, schedule.json, standings.json, teams.json, roster_*.json
-    requests.rds/csv, parsed_lineups.rds, goalie_directory.rds
-    coverage.rds/csv, projected_goalie_df.rds/csv
-    eligible_pregame.rds/csv, post_start_observations.rds/csv
-    player_directory.rds, parsed_rosters.rds
-    projected_roster_df.rds/csv, roster_coverage.rds/csv
-    roster_notes.rds/csv, roster_diagnostics.rds/csv
-    roster_eligible_pregame.rds/csv, roster_post_start_observations.rds/csv
+  goalie_directory_history.rds
+  player_directory_history.rds
+  projected_goalie_latest.rds
+  projected_roster_latest.rds
+  history/
+    <unique-observation>/
 ```
 
-Raw fallback/error responses are retained too. Logs record URLs, HTTP status,
-request start/completion UTC timestamps and errors. Receipts identify the source
-commit and Actions URL; manifests record file hashes. Git preserves raw bytes.
-Failed runs retain a receipt and whatever was collected before failure.
+Each observation contains the following files when collection reaches the relevant step:
 
-The workflow attempts a verified, ordinary push even after collection/setup/test
-failure. Storage rejects changes to older observations and stale concurrent
-writers; GitHub's shared `queue: max` serializes collection. **Do not force-push,
-delete, or merge `data` into `main`.** No automatic history deletion is configured.
+| Files | Purpose |
+|---|---|
+| `projected_goalie_df.rds/csv`, `projected_roster_df.rds/csv` | Player-level results |
+| `coverage.rds/csv`, `roster_coverage.rds/csv` | Team coverage and eligibility |
+| `roster_diagnostics.rds/csv`, `roster_notes.rds/csv` | Name matches, unresolved names, and published notes |
+| `eligible_pregame.rds/csv`, `roster_eligible_pregame.rds/csv` | Eligible pregame rows |
+| `post_start_observations.rds/csv`, `roster_post_start_observations.rds/csv` | Observations made after scheduled start |
+| `lineups.html`, supporting JSON, `requests.rds/csv` | Source responses and request logs |
+| `summary.md`, `collection_status.txt` | Run summary and collection outcome |
 
-Authenticate for your private repository and clone `data` into a separate folder:
+Actions also writes `run.json` and `sha256.json` for the run receipt and file hashes. Failed runs preserve whatever was collected before failure.
+
+To download the automated history, authenticate for repository access and clone the `data` branch into a separate folder:
 
 ```powershell
-git clone --single-branch --branch data https://github.com/YOUR_ACCOUNT/YOUR_PRIVATE_REPO.git nhl-goalie-history
-git -C nhl-goalie-history pull --ff-only
+git clone --single-branch --branch data https://github.com/schwill2018/nhl-projection-pull.git nhl-projection-history
+git -C nhl-projection-history pull --ff-only
 ```
 
-Alternatively choose `data` in GitHub and download its ZIP. Git history survives
-Actions artifact expiration; keep a local clone/mirror backup as an additional copy.
-From the code repository root, point your model's as-of read at that download:
+Set `history_path` in the R example to that clone's `Data/projected_goalies` directory. You can also download a ZIP of the `data` branch from GitHub.
 
-```r
-source("R/projected_goalies.R")
-projected <- read_projected_goalies_asof(
-  game_date = "2026-10-07", cutoff_utc = "2026-10-07T18:00:00Z",
-  base_path = file.path("..", "nhl-goalie-history", "Data", "projected_goalies"))
-# Join on game_id + teamId + playerId, using your actual prediction cutoff.
-roster <- read_projected_rosters_asof(
-  game_date = "2026-10-08", cutoff_utc = "2026-10-08T18:00:00Z",
-  base_path = file.path("..", "nhl-goalie-history", "Data", "projected_goalies"))
-# Join your pregame player statistics on game_id + teamId + playerId.
-# Filter in_projected_lineup == 1 and forward_line <= 3 for the top three lines.
+**Do not force-push, delete, or merge `data` into `main`.** Push code changes to `main`. The archive tooling rejects changes to older observations and stale concurrent writes. History is not automatically deleted, so storage needs grow over time. A separate local backup is optional.
+
+## Check coverage and failures
+
+**A green run means the workflow succeeded. It does not mean every team has a projection.** Check the Actions summary or the archived coverage files before using a pull.
+
+Stale or unpublished articles, missing team blocks, and unresolved names are recorded as coverage gaps. No-games days can also complete successfully. Transport errors, non-404 HTTP failures, decoding errors, test failures, and archive failures fail the workflow.
+
+Actions attempts to archive failed collection runs when history restoration succeeded. A failed restore blocks the archive push to protect existing history. Each attempt also has a recovery artifact configured for 14-day retention.
+
+If an observation was not pushed, download its recovery artifact before it expires. Copy the unique observation folder into `Data/projected_goalies/history/` in an up-to-date, separate `data` clone, then commit and push the addition. Keep its original folder name and do not replace current caches with older copies. Rerunning collection creates a new observation; it cannot recover an earlier timestamp.
+
+Scheduled runs can be delayed or missed. Runner termination can prevent archival. Check missing or canceled runs as well as failures, and monitor repository storage and Actions usage. NHL endpoints and article layouts can change.
+
+## Validate changes
+
+After installing dependencies, run the offline checks from the repository root:
+
+```powershell
+Rscript --vanilla tests/test_collector.R
+Rscript --vanilla tests/test_rosters.R
+python -m unittest discover -s tests -p "test_*.py" -v
 ```
 
-The helper chooses the latest successful **whole-team** snapshot observed by the
-cutoff and strictly before scheduled start. Later stale/missing pulls cannot erase
-earlier eligible snapshots. Equal-time ties select one whole archive by path.
-Archives with run receipts marked failed/interrupted are excluded from model reads;
-older V2 archives without receipts remain supported.
-`projected_goalie_latest.rds` is only the latest pull and may be incomplete;
-historical models must use the as-of helper.
-The roster helper independently selects complete roster snapshots; a usable
-goalie projection does not imply a complete skater lineup. Old goalie-only
-archives remain intact and supply no fabricated full-roster rows.
+These checks use fixtures and temporary local Git repositories. They do not collect live projections or push to GitHub.
 
-## Updating through GitHub Desktop
-
-The source checkout is `C:\Users\schne\nhl-projection-pull`, on **main**.
-Collected history is on the separate **data** branch and is ignored in this
-source checkout. An ordinary push of main does not replace data.
-
-1. Select this repository and **Current branch: main** in GitHub Desktop.
-2. Click **Fetch origin**. If main has incoming commits, pull them before pushing;
-   if Desktop requires committing local edits first, make the commit, then pull.
-3. Review Changes: R/scripts/tests/docs/workflows are expected. `Data/` and
-   `.local/` must not be included. Commit with a summary such as
-   `Add full projected rosters with line and absence flags`.
-4. Click **Push origin**. Do not merge data into main, delete data, or force-push.
-5. On GitHub, run **Offline validation**, then **Collect NHL projected goalies**
-   manually on main. Verify roster coverage and the final durable archive step.
-   Inspect the newest data-branch observation for `projected_roster_df.csv`.
-
-No additional token, repository variable, dependency, or schedule change is needed.
-
-## Coverage, failures and recovery
-
-Each Actions **Summary** lists matched-team count, article date, team/opponent,
-name/ID, status and observation time. Archived `summary.md` and `coverage.csv`
-retain those details. Green means execution and storage succeeded, **not complete
-coverage**. Flags preserve V2: **1** = resolved first-listed goalie, **0** = other
-goalies on that matched team/game, **NA** = unknown/idle.
-
-Stale/undated articles, lineup HTTP 404 and missing blocks are expected gaps.
-Malformed blocks, wrong opponents, ambiguous/unmatched names and unresolved
-backups remain explicit coverage statuses. Both names must resolve distinctly.
-Identity fallbacks are labeled. `not_pregame` rows retain post-start observations
-separately with NA flags and no eligibility. FUT/PRE **and observation strictly
-before scheduled start** are required; equality already fails, even if still PRE.
-No-games days succeed with unknown flags.
-
-Transport/non-404 HTTP errors, response decoding/collector exceptions,
-dependency/test failures and storage/push errors **fail the workflow**. Inspect
-failed step logs and enable GitHub failed-workflow notifications. Each attempt
-also has a **14-day recovery artifact**, including a bootstrap receipt if restore
-fails. A failed restore prevents a durable push to protect existing history.
-
-For an unpushed observation, download its artifact before expiration, copy the
-unique run folder into `Data/projected_goalies/history/` in an up-to-date separate
-`data` clone, then commit/push the addition. Preserve its original directory name;
-do not overwrite the current cache with an older artifact. A manual rerun creates
-a new observation and cannot recreate the earlier historical timestamp.
-
-## Platform limits
-
-Schedules run from the default branch and can be delayed or dropped under load;
-exact-minute delivery is not guaranteed. Actual response completion time governs
-eligibility. The [concurrency queue](https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax#concurrency)
-holds up to 100 waiting runs; further runs can be canceled. Runner termination
-can prevent archival, so inspect canceled/missing runs as well as failures.
-
-Private repositories consume plan minutes/artifact storage. GitHub Free currently
-includes 2,000 minutes/month and 500 MB artifact storage; four daily pulls mean
-about 120 jobs/month. See [current limits](https://docs.github.com/en/actions/reference/limits)
-and account budgets. Artifacts expire after 14 days here and are subject to
-[retention policies](https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/enabling-features-for-your-repository/managing-github-actions-settings-for-a-repository);
-they are secondary recovery copies.
-
-The data branch grows indefinitely. Monitor clone/repository/cache size;
-[GitHub blocks files over 100 MiB](https://docs.github.com/en/repositories/working-with-files/managing-large-files/about-large-files-on-github)
-and recommends small repositories. Migrate to durable object storage if needed,
-preserving all timestamps/raw inputs. The public-repository 60-day inactivity
-schedule rule does not apply to this private setup. NHL endpoints/layout may change.
-
-See [necessary V2 fixes](docs/changes.md) and [test evidence](docs/validation.md).
-`reference/` contains unmodified supplied originals for comparison, not entrypoints.
+More detail: [roster schema and validation](docs/projected-rosters.md), [implementation changes](docs/changes.md), and [recorded validation results](docs/validation.md). The `reference/` folder contains the supplied originals for comparison; use `scripts/collect.R` to run this collector.
